@@ -1,0 +1,215 @@
+---
+title: "Tutorial 2: P22 Mouse Brain (RNA + ATAC)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{tutorial-2-P22-mouse-brain}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Welcome to this tutorial on using the `mTopic` package for spatial multimodal topic modeling of the P22 mouse brain dataset with ATAC and RNA modalities.
+
+In this tutorial, we will walk through the following steps:
+
+ - Scaling and normalizing the data.
+ - Applying spatial multimodal topic modeling to identify distinct cell populations and explore their functional roles.
+ - Visualizing the results to gain insight into the spatial distribution of topics and cell types within the tissue.
+
+Let us begin by importing the required libraries and downloading the filtered training data, available at [Zenodo](https://zenodo.org/records/15472980).
+
+```{r message = FALSE, warning = FALSE}
+library(mTopic)
+library(Seurat)
+
+dataset_name <- "P22_Mouse_Brain_ATAC_RNA_filtered.rds"
+working_dir <- '~/projects/datasets/'
+
+if(!file.exists(paste0(working_dir, dataset_name))){
+  download.file(
+    url = paste0("https://zenodo.org/records/15472980/files/", dataset_name, "?download=1"), 
+    destfile = paste0(working_dir, dataset_name), 
+    mode = "wb"
+  )
+}
+```
+
+# Spatial Multimodal Topic Modeling
+
+Load the prefiltered `Seurat` object with the human tonsils dataset. The dataset comprises 9,215 spatial spots and two modalities, `rna` (gene expression) and `atac` (chromatin accessibility).
+
+```{r}
+p22 <- readRDS(paste0(working_dir, dataset_name))
+```
+
+Before we train the spatial Multimodal Topic Model (`sMTM`), it is essential to preprocess the data to improve the model’s ability to identify meaningful patterns across modalities.
+
+To ensure comparability between ATAC and RNA data, we apply the following normalization and scaling steps:
+
+ - **TF-IDF transformation for RNA (`tfidf`).** Adjusts raw gene expression counts by balancing feature frequency and importance, emphasizing rare but informative genes.
+ - **Scaling across modalities (`scale_counts`).** Linearly scales counts to ensure all modalities contribute equally during topic modeling, preventing one from dominating the analysis.
+
+```{r}
+p22 <- tfidf(p22, mod = 'rna')
+p22 <- tfidf(p22, mod = 'atac')
+p22 <- scale_counts(p22)
+```
+
+Now that the data is preprocessed, we can train the spatial Multimodal Topic Model (`sMTM`). This model identifies coordinated patterns across modalities while incorporating spatial information. It captures co-expression of genes and proteins, revealing distinct cell populations and their functional states.
+
+ - **Initialize the model**. Create an instance of the `sMTM` class, specifying the number of topics (`n_topics`) and other parameters. We use 50 topics for this tutorial for a compact but expressive model.
+
+ - **Train the model**. Fit the model using Variational Inference (`VI`). This iterative process updates the model parameters to explain the observed data best. While we use 500 iterations in this tutorial for thorough training, the model often converges to meaningful topics in as few as 20 iterations. You can adjust the number of iterations based on dataset size and desired precision.
+
+```{r}
+smtm_model <- sMTM(p22, n_topics = 50, radius = 0.02, n_jobs = 100)
+smtm_model <- VI(smtm_model, n_iter = 500)
+```
+
+After training, export the learned parameters to the Seurat object the using `export_params` function:
+
+ - **Topic proportions** (`gamma` saved to `object@reductions$mTopic`). Represent the distribution of topics within each cell or spot. These proportions help identify which topics are active in different tissue regions.
+
+ - **Topic-feature distributions** (`lambda` saved to `object[[modality]]@meta.data`). Indicate the importance of each feature for each topic. These distributions help interpret the biological meaning of the topics.
+
+```{r}
+p22 <- export_params(smtm_model, p22)
+p22
+```
+
+The `export_params`. function not only exports model parameters but can also filter out insignificant topics based on their overall contribution. Topic filtering: Set `filter_topics = TRUE` to automatically remove topics with low overall activity. The `filter_threshold` parameter controls the minimum average topic proportion required to retain a topic.
+
+This helps remove spurious or noise-driven topics, simplifying downstream interpretation and visualization.
+
+```{r}
+plot_filter_topics(smtm_model)
+```
+
+```{r  echo = FALSE, out.width = "100%"}
+plot_filter_topics(smtm_model, save = 'tutorial2_plot1.png')
+knitr::include_graphics('tutorial2_plot1.png')
+```
+
+By preprocessing the data, training the `sMTM` model, and exporting the learned parameters, we have set the stage for a comprehensive analysis of cellular heterogeneity.
+
+# Visualizing Topic-Spot Distributions
+
+Visualizing topic distribution across cells or spatial spots is key in interpreting topic modeling results. These proportions reflect the contribution of each topic to each cell. They can reveal spatially organized cell states, types, or biological processes.
+
+To visualize topic proportions, use the `plot_topics` function to generate scatter plots where each cell or spot is colored according to the value of a selected topic. This reveals spatial patterns and gradients that help interpret biological variation within the tissue.
+
+For example, if a topic captures a specific cell type, the plot will highlight regions enriched in that population.
+
+```{r}
+plot_topics(p22, x = 'Spatial', s = 2)
+```
+
+```{r echo = FALSE, out.width = "100%"}
+plot_topics(p22, x = 'Spatial', save = 'tutorial2_plot2.png')
+knitr::include_graphics('tutorial2_plot2.png')
+```
+
+To visualize overall trends in topic-spot distributions, use the `plot_dominant_topics` function. This function assigns each cell or spot to its most dominant topic — the one with the highest proportion — and colors it accordingly.
+
+The resulting plot provides a global overview of topic dominance across the tissue, helping you quickly identify regions enriched in specific topics. These regions may correspond to distinct cell types, tissue structures, or gradients of biological activity.
+
+This visualization is handy for detecting the tissue’s spatial domains and functional zones.
+
+```{r}
+palette <- list(
+  'topic_1'  = '#ffbcdd', 'topic_2'  = '#aeffd6', 'topic_3'  = '#f8e494',
+  'topic_4'  = '#ffeef6', 'topic_5'  = '#acc5de', 'topic_6'  = '#f7de79',
+  'topic_7'  = '#a1ffcf', 'topic_8'  = '#93ffc9', 'topic_9'  = '#86ffc2',
+  'topic_10' = '#00cd00', 'topic_11' = '#78ffbb', 'topic_12' = '#20b2aa',
+  'topic_13' = '#f5d75f', 'topic_14' = '#83a8cd', 'topic_15' = '#642915',
+  'topic_16' = '#6bffb4', 'topic_17' = '#5dffae', 'topic_18' = '#ffff00',
+  'topic_19' = '#000000', 'topic_20' = '#5a8bbd', 'topic_21' = '#bebebe',
+  'topic_22' = '#50ffa7', 'topic_23' = '#ffabd5', 'topic_24' = '#f4d144',
+  'topic_25' = '#f4a460', 'topic_26' = '#ff0000', 'topic_27' = '#43ffa0',
+  'topic_28' = '#35ff99', 'topic_29' = '#28ff93', 'topic_30' = '#316eac',
+  'topic_31' = '#003f5c', 'topic_32' = '#08519c', 'topic_33' = '#fff8dc',
+  'topic_34' = '#cd853f', 'topic_35' = '#ff9bcd', 'topic_36' = '#ffffbf',
+  'topic_37' = '#c9f4c9', 'topic_38' = '#1aff8c', 'topic_39' = '#f2ca29',
+  'topic_40' = '#0dff85', 'topic_41' = '#ee3a8c', 'topic_42' = '#ff8ac4',
+  'topic_43' = '#bcb8f4', 'topic_44' = '#f1c40f', 'topic_45' = '#006400',
+  'topic_46' = '#ff79bc', 'topic_47' = '#0000cd', 'topic_48' = '#00ff7f', 
+  'topic_49' = '#8a508f', 'topic_50' = '#ff69b4'
+)
+
+plot_dominant_topics(p22, x = 'Spatial', s = 5, palette = palette)
+```
+
+```{r echo = FALSE, out.width = "100%"}
+plot_dominant_topics(p22, x = 'Spatial', marker = 'h', s = 5, palette = palette, save = 'tutorial2_plot3.png')
+knitr::include_graphics('tutorial2_plot3.png')
+```
+
+# Visualizing Feature Signatures
+
+To interpret the results of the `sMTM` model, it is important to examine the feature signatures associated with each topic. Identifying the most relevant features for each topic provides insight into the biological identity and function of the inferred cell populations or processes.
+
+Use the `plot_signatures` function to visualize the top features per topic. This function generates a set of plots, each showing the most significant features ranked by their importance for a given topic.
+
+These visualizations help reveal which molecular markers distinguish topics, aiding in biological interpretation and annotation of the results.
+
+```{r}
+plot_signatures(p22, mod = 'rna', n_top = 20)
+```
+
+```{r echo = FALSE, out.width = "100%"}
+plot_signatures(p22, mod = 'rna', n_top = 20, save = 'tutorial2_plot4.png')
+knitr::include_graphics('tutorial2_plot4.png')
+```
+
+```{r}
+plot_signatures(p22, mod = 'atac', n_top = 10)
+```
+
+```{r echo = FALSE, out.width = "100%"}
+plot_signatures(p22, mod = 'atac', n_top = 10, save = 'tutorial2_plot5.png')
+knitr::include_graphics('tutorial2_plot5.png')
+```
+
+To better understand the spatial relevance of topic signatures and validate their biological specificity, you can visualize feature z-scores. A z-score indicates how much a feature’s expression in a given cell deviates from the mean, normalized by standard deviation. This highlights significantly up- or downregulated features in specific regions or cell populations.
+
+Use `zscores` to compute modality-specific z-scores, and `plot_corr_heatmap` to visualize their correlation with topic-spot distributions.
+
+In the example below, we compute z-scores for the top 100 peaks and top 20 genes per topic to explore their spatial expression patterns.
+
+```{r}
+p22 <- zscores(p22, mod = 'rna', n_top = 20)
+plot_corr_heatmap(data1=p22@reductions$mTopic@cell.embeddings, label1 = 'sMTM topics', 
+                  data2=p22[['rna']]@misc$zscores, label2 = 'RNA z-scores')
+```
+
+```{r echo = FALSE, out.width = "100%"}
+p22 <- zscores(p22, mod = 'rna', n_top = 20)
+plot_corr_heatmap(data1=p22@reductions$mTopic@cell.embeddings, label1 = 'sMTM topics', figsize = c(10, 10),
+                  data2=p22[['rna']]@misc$zscores, label2 = 'RNA z-scores', save = 'tutorial2_plot6.png')
+knitr::include_graphics('tutorial2_plot6.png')
+```
+
+```{r}
+p22 <- zscores(p22, mod = 'atac', n_top = 20)
+plot_corr_heatmap(data1=p22@reductions$mTopic@cell.embeddings, label1 = 'sMTM topics', 
+                  data2=p22[['atac']]@misc$zscores, label2 = 'ATAC z-scores')
+```
+
+```{r echo = FALSE, out.width = "100%"}
+p22 <- zscores(p22, mod = 'atac', n_top = 20)
+plot_corr_heatmap(data1=p22@reductions$mTopic@cell.embeddings, label1 = 'sMTM topics', figsize = c(10, 10),
+                  data2=p22[['atac']]@misc$zscores, label2 = 'ATAC z-scores', save = 'tutorial2_plot7.png')
+knitr::include_graphics('tutorial2_plot7.png')
+```
+
+This concludes the example application of `mTopic` for modeling spatial multimodal single-cell data, demonstrated using the P22 mouse brain dataset. We have walked through preprocessing, topic modeling, and result interpretation, highlighting how `mTopic` enables integrated analysis across modalities with spatial context.
+
+```{r eval = FALSE}
+#saveRDS(p22, paste0(working_dir, 'P22_Mouse_Brain_ATAC_RNA_trained.rds'))
+```

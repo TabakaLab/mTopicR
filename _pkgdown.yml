@@ -1,0 +1,46 @@
+url: https://tabakalab.github.io/mTopicR/
+destination: docs
+
+template:
+  params:
+    bootswatch: flatly
+
+navbar:
+  structure:
+    left: [getstarted, tutorials, api, link1, link2]
+    right: [github]
+  components:
+    getstarted:
+      text: Get Started
+      href: index.html
+    api:
+      text: API
+      href: reference/index.html
+    tutorials:
+      text: Tutorials
+      menu:
+      - text: Data Preparation
+        href: articles/tutorial-1-data-preparation.html
+      - text: P22 Mouse Brain (ATAC + RNA)
+        href: articles/tutorial-2-P22-mouse-brain.html
+      - text: Human Tonsil (RNA + Protein Epitopes)
+        href: articles/tutorial-3-human-tonsil.html
+      - text: Human PBMC (ATAC + RNA + Protein Epitopes)
+        href: articles/tutorial-4-human-pbmc.html
+    link1:
+      text: Python Package
+      href: https://github.com/TabakaLab/mTopic
+      target: _blank
+    link2:
+      text: Interactive Dashboard
+      href: https://github.com/TabakaLab/mTopic/tree/main/dashboard
+      target: _blank
+
+development:
+  mode: auto
+  license: false
+  citation: false
+
+exclude:
+  - citation.html
+  - license.html
