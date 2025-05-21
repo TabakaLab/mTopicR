@@ -1,0 +1,12 @@
+pandoc: '3.2'
+pkgdown: 2.1.1
+pkgdown_sha: ~
+articles:
+  tutorial-1-data-preparation: tutorial-1-data-preparation.html
+  tutorial-2-P22-mouse-brain: tutorial-2-P22-mouse-brain.html
+  tutorial-3-human-tonsil: tutorial-3-human-tonsil.html
+  tutorial-4-human-pbmc: tutorial-4-human-pbmc.html
+last_built: 2025-05-20T17:13Z
+urls:
+  reference: https://tabakalab.github.io/mTopicR/reference
+  article: https://tabakalab.github.io/mTopicR/articles
