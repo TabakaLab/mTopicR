@@ -208,7 +208,7 @@ plot_corr_heatmap(data1=p22@reductions$mTopic@cell.embeddings, label1 = 'sMTM to
 knitr::include_graphics('tutorial2_plot7.png')
 ```
 
-This concludes the example application of `mTopic` for modeling spatial multimodal single-cell data, demonstrated using the P22 mouse brain dataset. We have walked through preprocessing, topic modeling, and result interpretation, highlighting how `mTopic` enables integrated analysis across modalities with spatial context.
+This concludes the example application of `mTopic` for modeling spatial multimodal single-cell data, demonstrated using the P22 mouse brain dataset. We have walked through preprocessing, topic modeling, and result interpretation, highlighting how `mTopic` enables a joint analysis across modalities with spatial context.
 
 ```{r eval = FALSE}
 #saveRDS(p22, paste0(working_dir, 'P22_Mouse_Brain_ATAC_RNA_trained.rds'))
