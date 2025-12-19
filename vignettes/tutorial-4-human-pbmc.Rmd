@@ -42,7 +42,7 @@ The filtered dataset contains 7,349 cells and includes three modalities:
  - `rna`: gene expression data,
  - `prot`: protein abundance data.
 
-This rich multimodal structure enables integrated modeling of transcriptional activity, regulatory accessibility, and surface protein expression at single-cell resolution.
+This rich multimodal structure enables a joint modeling of transcriptional activity, regulatory accessibility, and surface protein expression at single-cell resolution.
 
 ```{r}
 pbmc <- readRDS(paste0(working_dir, dataset_name))
